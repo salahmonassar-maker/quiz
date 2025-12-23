@@ -4,104 +4,146 @@
 <meta charset="UTF-8">
 <title>اختبار الطالب</title>
 <style>
-body{font-family:Tahoma;direction:rtl;background:#020617;color:#fff}
-.container{max-width:900px;margin:auto;padding:20px}
-.card{background:#1e293b;padding:20px;border-radius:15px;margin-bottom:20px}
-label{display:block;background:#334155;padding:10px;margin:8px;border-radius:8px}
-#timer{background:#dc2626;padding:10px;border-radius:10px;text-align:center}
+body{
+    font-family: Tahoma;
+    direction: rtl;
+    background:#1b2735;
+    color:#fff;
+    text-align:center;
+    margin:0;
+    padding:0;
+}
+.container{
+    max-width:900px;
+    margin:auto;
+    background:#2c3e50;
+    border-radius:15px;
+    padding:20px;
+    margin-top:20px;
+}
+h1,h2,h3{color:#ffdd57}
+input,button{
+    padding:10px;
+    border-radius:8px;
+    border:none;
+    margin:8px;
+    font-size:16px;
+}
+button{
+    background:#f39c12;
+    cursor:pointer;
+}
+button:hover{background:#f1c40f;}
+.question{
+    background:#34495e;
+    padding:15px;
+    border-radius:10px;
+    margin:15px 0;
+}
+label{
+    display:block;
+    background:#3c5a72;
+    padding:10px;
+    margin:6px 0;
+    border-radius:8px;
+    cursor:pointer;
+}
+#submitArea{margin-top:20px;}
 </style>
 </head>
-
 <body>
+
 <div class="container">
 
-<h1 id="title">اختبار</h1>
+<h1>اختبار تفاعلي – للطلاب</h1>
 
-<div class="card">
-<input id="subject" placeholder="المادة">
-<input id="topic" placeholder="الموضوع">
-<input id="student" placeholder="اسم الطالب">
-<button onclick="start()">ابدأ</button>
-</div>
+<input id="studentName" placeholder="اسم الطالب"><br>
+<button onclick="startQuiz()">ابدأ الاختبار</button>
 
-<div id="timer"></div>
 <div id="quiz"></div>
-<div id="result"></div>
+<div id="submitArea"></div>
 
 </div>
 
 <script>
-const FORM_URL="https://docs.google.com/forms/d/e/1FAIpQLScfAkat7dEs9N8CaQQ2ytZY9oV9GcXcEXxWGVcNiNLrBkqXDQ/formResponse";
-const EN_NAME="entry.1210043991";
-const EN_SCORE="entry.1822773689";
-const EN_SUB="entry.1713670424";
-const EN_TOP="entry.1872836989";
+// ====== Google Form إعداد ======
+const FORM_URL =
+"https://docs.google.com/forms/d/e/1FAIpQLSepHivX2R8qwmb15faZw7-_ydhoEOGPb_AAo7jJGvFLaOYTRA/formResponse";
 
-let data,selected=[],timeLeft,intv;
+const ENTRY_NAME   = "entry.216523096";
+const ENTRY_SCORE  = "entry.855843140";
+const ENTRY_SUB    = "entry.721931845";
+const ENTRY_TOPIC  = "entry.324479818";
 
-function start(){
-  let key="quiz_"+subject.value+"_"+topic.value;
-  data=JSON.parse(localStorage.getItem(key));
-  if(!data){alert("لا يوجد اختبار");return;}
+// ====== استدعاء الأسئلة من نسخة المعلم ======
+let questions = JSON.parse(localStorage.getItem("quiz_default")) || [];
 
-  title.innerText=subject.value+" - "+topic.value;
-  selected=[];
-  let used=[];
+// ====== متغيرات ======
+let selected = [];
 
-  while(selected.length<data.qCount){
-    let i=Math.floor(Math.random()*data.questions.length);
-    if(!used.includes(i)){used.push(i);selected.push(data.questions[i]);}
-  }
+// ====== بدء الاختبار ======
+function startQuiz(){
+    let name = studentName.value.trim();
+    if(!name){alert("أدخل اسمك");return;}
 
-  quiz.innerHTML="";
-  selected.forEach((q,i)=>{
-    let d=document.createElement("div");
-    d.className="card";
-    d.innerHTML="<h3>"+q.q+"</h3>";
-    q.o.forEach((op,j)=>{
-      d.innerHTML+=`<label>
-      <input type="radio" name="q${i}" value="${j}"> ${op}
-      </label>`;
+    document.getElementById("quiz").innerHTML="";
+    document.getElementById("submitArea").innerHTML="";
+
+    if(questions.length===0){
+        alert("لا توجد أسئلة متاحة، يرجى مراجعة المعلم");
+        return;
+    }
+
+    shuffleArray(questions);
+    let numQ = +localStorage.getItem("numQuestions") || questions.length;
+    selected = questions.slice(0, numQ);
+
+    selected.forEach((q,i)=>{
+        let div = document.createElement("div");
+        div.className = "question";
+        div.innerHTML = `<h3>${q.q}</h3>`;
+        q.o.forEach((op,j)=>{
+            div.innerHTML +=
+            `<label><input type="radio" name="q${i}" value="${j}"> ${op}</label>`;
+        });
+        document.getElementById("quiz").appendChild(div);
     });
-    quiz.appendChild(d);
-  });
 
-  let b=document.createElement("button");
-  b.innerText="إنهاء";
-  b.onclick=finish;
-  quiz.appendChild(b);
-
-  startTimer(data.timeLimit);
+    let btn=document.createElement("button");
+    btn.innerText="إنهاء وارسال للإجابة";
+    btn.onclick = sendToForm;
+    document.getElementById("submitArea").appendChild(btn);
 }
 
-function startTimer(min){
-  timeLeft=min*60;
-  intv=setInterval(()=>{
-    timer.innerText="⏱ "+Math.floor(timeLeft/60)+":"+timeLeft%60;
-    timeLeft--;
-    if(timeLeft<0){clearInterval(intv);finish();}
-  },1000);
+// ====== إرسال للـ Google Form ======
+function sendToForm(){
+    let name = studentName.value.trim();
+    let score = 0;
+
+    selected.forEach((q,i)=>{
+        let r = document.querySelector(`input[name="q${i}"]:checked`);
+        if(r && +r.value === q.a) score++;
+    });
+
+    let count = selected.length;
+    let paramString =
+        `?${ENTRY_NAME}=${encodeURIComponent(name)}` +
+        `&${ENTRY_SCORE}=${encodeURIComponent(score+"/"+count)}` +
+        `&${ENTRY_SUB}=${encodeURIComponent(localStorage.getItem("currentSubject")||"عام")}` +
+        `&${ENTRY_TOPIC}=${encodeURIComponent(localStorage.getItem("currentTopic")||"عام")}`;
+
+    // فتح Google Form مسبق التعبئة في نافذة جديدة
+    window.open(FORM_URL+paramString, "_blank");
 }
 
-function finish(){
-  clearInterval(intv);
-  let score=0;
-  selected.forEach((q,i)=>{
-    let r=document.querySelector(`input[name="q${i}"]:checked`);
-    if(r && r.value==q.a)score++;
-  });
-
-  let p=new URLSearchParams();
-  p.append(EN_NAME,student.value);
-  p.append(EN_SCORE,score+"/"+selected.length);
-  p.append(EN_SUB,subject.value);
-  p.append(EN_TOP,topic.value);
-
-  fetch(FORM_URL,{method:"POST",mode:"no-cors",body:p});
-
-  quiz.innerHTML="";
-  result.innerHTML=`<h2>درجتك ${score}/${selected.length}</h2>`;
+// ====== خلط الأسئلة ======
+function shuffleArray(arr){
+    for(let i=arr.length-1;i>0;i--){
+        let j = Math.floor(Math.random()*(i+1));
+        [arr[i],arr[j]] = [arr[j],arr[i]];
+    }
 }
 </script>
+
 </body>
 </html>

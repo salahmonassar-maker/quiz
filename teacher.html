@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+<meta charset="UTF-8">
+<title>نسخة المعلم – نظام اختبار</title>
+<style>
+body{font-family:Tahoma;direction:rtl;background:#0f172a;color:#fff}
+.container{max-width:1100px;margin:auto;padding:20px}
+.card{background:#1e293b;padding:20px;border-radius:15px;margin-bottom:20px}
+input,button{padding:10px;border-radius:10px;border:none;margin:5px}
+button{background:#22c55e}
+table{width:100%;border-collapse:collapse}
+th,td{border:1px solid #fff;padding:10px}
+</style>
+</head>
+
+<body>
+<div class="container">
+
+<h1>👨‍🏫 نسخة المعلم</h1>
+
+<div class="card">
+<input id="subject" placeholder="المادة">
+<input id="topic" placeholder="الموضوع">
+<button onclick="load()">تحميل</button>
+</div>
+
+<div class="card">
+<h3>إعدادات الاختبار</h3>
+عدد الأسئلة:
+<input id="qCount" type="number" value="3">
+الزمن (بالدقائق):
+<input id="timeLimit" type="number" value="2">
+</div>
+
+<div class="card">
+<h3>إضافة سؤال</h3>
+<input id="qText" style="width:90%" placeholder="السؤال"><br>
+<input id="o0" placeholder="خيار 1">
+<input id="o1" placeholder="خيار 2">
+<input id="o2" placeholder="خيار 3">
+<input id="o3" placeholder="خيار 4"><br>
+<input id="correct" type="number" min="0" max="3" placeholder="الإجابة الصحيحة">
+<button onclick="add()">إضافة</button>
+</div>
+
+<div class="card">
+<button onclick="exportQ()">⬇️ تصدير الأسئلة</button>
+<input type="file" onchange="importQ(event)">
+</div>
+
+<div class="card">
+<h3>الأسئلة</h3>
+<table id="table"></table>
+</div>
+
+</div>
+
+<script>
+let key="",questions=[];
+
+function load(){
+  key="quiz_"+subject.value+"_"+topic.value;
+  let data=JSON.parse(localStorage.getItem(key))||{};
+  questions=data.questions||[];
+  qCount.value=data.qCount||3;
+  timeLimit.value=data.timeLimit||2;
+  render();
+}
+
+function save(){
+  localStorage.setItem(key,JSON.stringify({
+    questions:questions,
+    qCount:qCount.value,
+    timeLimit:timeLimit.value
+  }));
+}
+
+function add(){
+  questions.push({
+    q:qText.value,
+    o:[o0.value,o1.value,o2.value,o3.value],
+    a:+correct.value
+  });
+  qText.value=o0.value=o1.value=o2.value=o3.value=correct.value="";
+  save(); render();
+}
+
+function render(){
+  table.innerHTML="<tr><th>#</th><th>السؤال</th></tr>";
+  questions.forEach((q,i)=>{
+    let r=table.insertRow();
+    r.insertCell(0).innerText=i+1;
+    r.insertCell(1).innerText=q.q;
+  });
+}
+
+function exportQ(){
+  let a=document.createElement("a");
+  a.href=URL.createObjectURL(new Blob([JSON.stringify(questions)],{type:"application/json"}));
+  a.download="questions.json";
+  a.click();
+}
+
+function importQ(e){
+  let r=new FileReader();
+  r.onload=()=>{
+    questions=JSON.parse(r.result);
+    save(); render();
+  };
+  r.readAsText(e.target.files[0]);
+}
+</script>
+</body>
+</html>

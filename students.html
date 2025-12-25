@@ -177,16 +177,41 @@ function renderQuiz(){
     submitArea.appendChild(btn);
 }
 
-// ===== إرسال الإجابة وحساب الدرجات =====
+// ===== إرسال الإجابة وحساب الدرجات + التصحيح بعد انتهاء الاختبار =====
 function submitQuiz(){
     let name = studentName.value.trim();
     let score = 0;
 
+    quiz.innerHTML = "";  // مسح الأسئلة القديمة
+    submitArea.innerHTML = "";
+
     selected.forEach((q,i)=>{
         let r = document.querySelector(`input[name="q${i}"]:checked`);
-        if(r && +r.value === q.a) score++;
+        let div = document.createElement("div");
+        div.className="question";
+
+        let chosen = r ? +r.value : -1;
+        let correct = q.a;
+
+        div.innerHTML = `<h3>${q.q}</h3>`;
+        q.o.forEach((op,j)=>{
+            let color = "";
+            if(j === correct) color = "lightgreen"; // الإجابة الصحيحة
+            if(j === chosen && j !== correct) color = "red"; // الإجابة الخاطئة
+            div.innerHTML += `<div style="background:${color}; padding:5px; border-radius:5px; margin:3px;">${op}</div>`;
+        });
+
+        quiz.appendChild(div);
+
+        if(chosen === correct) score++;
     });
 
+    // عرض النتيجة النهائية
+    let resultDiv = document.createElement("div");
+    resultDiv.innerHTML = `<h2>نتيجتك: ${score}/${selected.length}</h2>`;
+    quiz.appendChild(resultDiv);
+
+    // حفظ النتيجة في Firebase
     db.collection("results").add({
         student: name,
         subject: currentSubject,
@@ -194,12 +219,7 @@ function submitQuiz(){
         score: score,
         total: selected.length,
         date: new Date()
-    }).then(()=>{
-        alert(`تم إرسال الإجابة! نتيجتك: ${score}/${selected.length}`);
-        location.reload();
-    }).catch(err=>{
-        alert("حدث خطأ: "+err);
-    });
+    }).then(()=>console.log("تم حفظ النتيجة")).catch(err=>console.log(err));
 }
 
 // ===== خلط الأسئلة =====
